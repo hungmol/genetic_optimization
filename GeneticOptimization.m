@@ -14,6 +14,11 @@ classdef GeneticOptimization
         left_digits_num = 0;
         right_digits_num = 0;
         
+        % New generation list
+        new_gen_pop_bin_left_lst = [];
+        new_gen_pop_bin_right_lst = [];
+        new_gen_val = [];
+        
         %Real number in decimal
         init_pop_left_dec_lst = [];
         init_pop_right_dec_lst = [];
@@ -23,22 +28,76 @@ classdef GeneticOptimization
         
         % cross breeding
         cross_prob = 20; %unit percentage: 20% by default
+        crossing_point = 4;
     end
     
     methods (Access = 'public')
         %Constructor
-        function obj = GeneticOptimization (low_1, high_1, low_2, high_2, pop_size, res, max_iter, cross_prob)
-            if(nargin == 8)
-                obj.low_range_1     = low_1;
-                obj.low_range_2     = low_2;
-                obj.high_range_1    = high_1;
-                obj.high_range_2    = high_2;
-                obj.pop_size        = pop_size;
-                obj.resolution      = res;
-                obj.max_iter        = max_iter;
-                obj.cross_prob      = cross_prob;
-            else
-                fprintf('[ERROR] Invalid input arguments\n');
+        
+        function obj = GeneticOptimization (low_1, high_1, low_2, high_2, pop_size, res, max_iter, cross_prob, crossing_point)
+            switch nargin
+                case 4
+                    obj.low_range_1     = low_1;
+                    obj.low_range_2     = low_2;
+                    obj.high_range_1    = high_1;
+                    obj.high_range_2    = high_2;
+                    obj.pop_size        = 100;
+                    obj.resolution      = 3;
+                    obj.max_iter        = 100;
+                    obj.cross_prob      = 20; %percents
+                    obj.crossing_point  = 4;
+                case 5
+                    obj.low_range_1     = low_1;
+                    obj.low_range_2     = low_2;
+                    obj.high_range_1    = high_1;
+                    obj.high_range_2    = high_2;
+                    obj.pop_size        = pop_size;
+                    obj.resolution      = 3;
+                    obj.max_iter        = 100;
+                    obj.cross_prob      = 20;
+                    obj.crossing_point  = 4;
+                case 6
+                    obj.low_range_1     = low_1;
+                    obj.low_range_2     = low_2;
+                    obj.high_range_1    = high_1;
+                    obj.high_range_2    = high_2;
+                    obj.pop_size        = pop_size;
+                    obj.resolution      = res;
+                    obj.max_iter        = 100;
+                    obj.cross_prob      = 20;
+                    obj.crossing_point  = 4;
+                case 7
+                    obj.low_range_1     = low_1;
+                    obj.low_range_2     = low_2;
+                    obj.high_range_1    = high_1;
+                    obj.high_range_2    = high_2;
+                    obj.pop_size        = pop_size;
+                    obj.resolution      = res;
+                    obj.max_iter        = max_iter;
+                    obj.cross_prob      = 20;
+                    obj.crossing_point  = 4;
+                case 8
+                    obj.low_range_1     = low_1;
+                    obj.low_range_2     = low_2;
+                    obj.high_range_1    = high_1;
+                    obj.high_range_2    = high_2;
+                    obj.pop_size        = pop_size;
+                    obj.resolution      = res;
+                    obj.max_iter        = max_iter;
+                    obj.cross_prob      = cross_prob;
+                    obj.crossing_point  = 4;
+                case 9
+                    obj.low_range_1     = low_1;
+                    obj.low_range_2     = low_2;
+                    obj.high_range_1    = high_1;
+                    obj.high_range_2    = high_2;
+                    obj.pop_size        = pop_size;
+                    obj.resolution      = res;
+                    obj.max_iter        = max_iter;
+                    obj.cross_prob      = cross_prob;
+                    obj.crossing_point  = crossing_point;
+                otherwise
+                    fprintf('[ERROR] Invalid input arguments\n');
             end
         end
 
@@ -51,7 +110,7 @@ classdef GeneticOptimization
         function f = compute_func(obj, x, y, resolution)
             % Put resolution here to generate the constant C big enough.
             %To-do: Temporary change the equation here.
-            f = x.^2 - 4*x.*y + 5*y.^2 - 4*y + 3 + 10^resolution;
+            f = x.^2 - 4*x.*y + 5*y.^2 - 4*y + 3 + 10^resolution; % <== this is Constant number
         end
         %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
@@ -138,6 +197,36 @@ classdef GeneticOptimization
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             
         end
+        
+        % Input is binary number
+        function [new_male, new_female] = crossing_one_couple(obj, male, female, cross_point)
+            num_of_bits = size(male)(1,2);
+            
+            %Male:   1 0 1 0 1 0 | 0 0 0 1 1 1 1 0
+            %        ```````````   '''''''''''''''
+            %Female: 0 1 0 0 1 0 | 0 1 1 0 0 1 0 1
+            %        '''''''''''   ```````````````
+            
+            % Compute for new male
+            male_mask = ones(1, num_of_bits);
+            female_mask = ones(1, num_of_bits);            
+            male_mask(1, 1:cross_point) = 0;
+            female_mask(1,cross_point + 1: num_of_bits) = 0;
+            tmp_male = male .* male_mask;
+            tmp_female = female .* female_mask;
+            new_male = tmp_male .+ tmp_female;
+            
+            % Compute for new female
+            male_mask = ones(1, num_of_bits);
+            female_mask = ones(1, num_of_bits);            
+            male_mask(1, cross_point + 1:num_of_bits) = 0;
+            female_mask(1, 1:cross_point) = 0;
+            tmp_male = male .* male_mask;
+            tmp_female = female .* female_mask;
+            new_female = tmp_male .+ tmp_female;
+        end
+        
+        
         %%%%%%%%% ULTILITY FUNCTION %%%%%%%%%%%
         %% Checking the valid input arguments
         function ret_status = check_valid_range(obj)
@@ -199,8 +288,42 @@ classdef GeneticOptimization
             end
             % TO-DO: Compute the final F(x, y) values
             % Insert F function here.
+            % f_value_init_lst will be update after each iteration
             obj.f_value_init_lst = compute_func(obj, obj.init_pop_left_dec_lst, obj.init_pop_right_dec_lst, obj.resolution);
-            disp(obj.f_value_init_lst);
+            
+            %obj = crossing_couples(obj);
+            
+            %%% Testing for crossing couple %%%%%%
+            male = de2bi(12345);
+            female = de2bi(12300);
+            [new_male, new_female] = crossing_one_couple(obj, male, female, obj.crossing_point);
+            printf('Before: \n');
+            disp(male)
+            disp(female)
+            printf('New: \n');
+            disp(new_male);
+            disp(new_female);
+        end
+        
+        
+        %%%% RANDOM SELECT COUPLES %%%%%%%%%%%%%%
+        function obj = crossing_couples(obj)
+            %%% TO-DO: Need to calculate based on cross probability
+            %obj_use_to_cross always need to even.
+            obj_use_to_cross = obj.cross_prob * obj.pop_size / 100;
+            rand_idx = randperm(obj.pop_size, obj_use_to_cross);
+            
+            % Initialize before crossing.
+            obj.new_gen_pop_bin_left_lst = obj.init_pop_left_bin_lst;
+            obj.new_gen_pop_bin_right_lst = obj.init_pop_right_bin_lst;
+            obj.new_gen_val = obj.f_value_init_lst;
+            %for iter = 1:obj.max_iters
+               couples_selected_lst = zeros(1, obj_use_to_cross);
+               for id = 1:obj_use_to_cross
+                   couples_selected_lst(1, id) = obj.new_gen_val(rand_idx(1, id),1);
+               end
+               disp(couples_selected_lst)
+            %end
         end
         
         %%%%%%%%%%%%%%%%%%%%%%%%%%%% TESTING FIELD %%%%%%%%%%%%%%%%%%%%%%%%%%%%%
