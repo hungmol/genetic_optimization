@@ -22,19 +22,20 @@ classdef GeneticOptimization
         %Real number in decimal
         init_pop_left_dec_lst = [];
         init_pop_right_dec_lst = [];
+        init_bin_chromosome = [];
+        new_bin_chromosome = [];
         
         % The value of the input function f(x,y)
         f_value_init_lst = [];
         
         % cross breeding
         cross_prob = 20; %unit percentage: 20% by default
-        crossing_point = 4;
     end
     
     methods (Access = 'public')
         %Constructor
         
-        function obj = GeneticOptimization (low_1, high_1, low_2, high_2, pop_size, res, max_iter, cross_prob, crossing_point)
+        function obj = GeneticOptimization (low_1, high_1, low_2, high_2, pop_size, res, max_iter, cross_prob)
             switch nargin
                 case 4
                     obj.low_range_1     = low_1;
@@ -45,7 +46,6 @@ classdef GeneticOptimization
                     obj.resolution      = 3;
                     obj.max_iter        = 100;
                     obj.cross_prob      = 20; %percents
-                    obj.crossing_point  = 4;
                 case 5
                     obj.low_range_1     = low_1;
                     obj.low_range_2     = low_2;
@@ -55,7 +55,6 @@ classdef GeneticOptimization
                     obj.resolution      = 3;
                     obj.max_iter        = 100;
                     obj.cross_prob      = 20;
-                    obj.crossing_point  = 4;
                 case 6
                     obj.low_range_1     = low_1;
                     obj.low_range_2     = low_2;
@@ -65,7 +64,6 @@ classdef GeneticOptimization
                     obj.resolution      = res;
                     obj.max_iter        = 100;
                     obj.cross_prob      = 20;
-                    obj.crossing_point  = 4;
                 case 7
                     obj.low_range_1     = low_1;
                     obj.low_range_2     = low_2;
@@ -75,7 +73,6 @@ classdef GeneticOptimization
                     obj.resolution      = res;
                     obj.max_iter        = max_iter;
                     obj.cross_prob      = 20;
-                    obj.crossing_point  = 4;
                 case 8
                     obj.low_range_1     = low_1;
                     obj.low_range_2     = low_2;
@@ -85,17 +82,6 @@ classdef GeneticOptimization
                     obj.resolution      = res;
                     obj.max_iter        = max_iter;
                     obj.cross_prob      = cross_prob;
-                    obj.crossing_point  = 4;
-                case 9
-                    obj.low_range_1     = low_1;
-                    obj.low_range_2     = low_2;
-                    obj.high_range_1    = high_1;
-                    obj.high_range_2    = high_2;
-                    obj.pop_size        = pop_size;
-                    obj.resolution      = res;
-                    obj.max_iter        = max_iter;
-                    obj.cross_prob      = cross_prob;
-                    obj.crossing_point  = crossing_point;
                 otherwise
                     fprintf('[ERROR] Invalid input arguments\n');
             end
@@ -125,7 +111,10 @@ classdef GeneticOptimization
                 
             %Convert to binary base
             obj.init_pop_left_bin_lst = de2bi(tmp_init_pop_left_dec_lst);
-            obj.init_pop_right_bin_lst = de2bi(tmp_init_pop_right_dec_lst);            
+            obj.init_pop_right_bin_lst = de2bi(tmp_init_pop_right_dec_lst);   
+   
+            % initialize chromosome
+            obj.init_bin_chromosome = [obj.init_pop_left_bin_lst, obj.init_pop_right_bin_lst];
         end
         
         function obj = convert_bin_2_dec(obj)
@@ -199,8 +188,8 @@ classdef GeneticOptimization
         end
         
         % Input is binary number
-        function [new_male, new_female] = crossing_one_couple(obj, male, female, cross_point)
-            num_of_bits = size(male)(1,2);
+        function [new_male, new_female] = crossover_a_couple(obj, male, female, crossover_point)
+            [num_chromo, num_of_bits] = size(male);
             
             %Male:   1 0 1 0 1 0 | 0 0 0 1 1 1 1 0
             %        ```````````   '''''''''''''''
@@ -208,19 +197,19 @@ classdef GeneticOptimization
             %        '''''''''''   ```````````````
             
             % Compute for new male
-            male_mask = ones(1, num_of_bits);
-            female_mask = ones(1, num_of_bits);            
-            male_mask(1, 1:cross_point) = 0;
-            female_mask(1,cross_point + 1: num_of_bits) = 0;
+            male_mask = ones(num_chromo, num_of_bits);
+            female_mask = ones(num_chromo, num_of_bits);            
+            male_mask(:, 1:crossover_point) = 0;
+            female_mask(:,crossover_point + 1: num_of_bits) = 0;
             tmp_male = male .* male_mask;
             tmp_female = female .* female_mask;
             new_male = tmp_male .+ tmp_female;
             
             % Compute for new female
-            male_mask = ones(1, num_of_bits);
-            female_mask = ones(1, num_of_bits);            
-            male_mask(1, cross_point + 1:num_of_bits) = 0;
-            female_mask(1, 1:cross_point) = 0;
+            male_mask = ones(num_chromo, num_of_bits);
+            female_mask = ones(num_chromo, num_of_bits);            
+            male_mask(:, crossover_point + 1:num_of_bits) = 0;
+            female_mask(:, 1:crossover_point) = 0;
             tmp_male = male .* male_mask;
             tmp_female = female .* female_mask;
             new_female = tmp_male .+ tmp_female;
@@ -291,38 +280,54 @@ classdef GeneticOptimization
             % f_value_init_lst will be update after each iteration
             obj.f_value_init_lst = compute_func(obj, obj.init_pop_left_dec_lst, obj.init_pop_right_dec_lst, obj.resolution);
             
-            %obj = crossing_couples(obj);
+            obj = crossover_good_couples(obj);
             
-            %%% Testing for crossing couple %%%%%%
-            male = de2bi(12345);
-            female = de2bi(12300);
-            [new_male, new_female] = crossing_one_couple(obj, male, female, obj.crossing_point);
-            printf('Before: \n');
-            disp(male)
-            disp(female)
-            printf('New: \n');
-            disp(new_male);
-            disp(new_female);
+           
         end
         
         
         %%%% RANDOM SELECT COUPLES %%%%%%%%%%%%%%
-        function obj = crossing_couples(obj)
+        function obj = crossover_good_couples(obj)
             %%% TO-DO: Need to calculate based on cross probability
             %obj_use_to_cross always need to even.
-            obj_use_to_cross = obj.cross_prob * obj.pop_size / 100;
-            rand_idx = randperm(obj.pop_size, obj_use_to_cross);
+            num_of_chromosome_4_crossover = obj.cross_prob * obj.pop_size / 100;
             
             % Initialize before crossing.
             obj.new_gen_pop_bin_left_lst = obj.init_pop_left_bin_lst;
             obj.new_gen_pop_bin_right_lst = obj.init_pop_right_bin_lst;
             obj.new_gen_val = obj.f_value_init_lst;
+            obj.new_bin_chromosome = obj.init_bin_chromosome;
+            
+            %%% Step 1: Initialize and select random couples base on the crossover probability.
+            rand_idx = randperm(obj.pop_size, num_of_chromosome_4_crossover);
+            crossover_points = randperm(obj.left_digits_num + obj.right_digits_num - 1, num_of_chromosome_4_crossover);
+            couples_selected_lst = zeros(1, num_of_chromosome_4_crossover);
+            chromosome_bin_selected = zeros(num_of_chromosome_4_crossover, obj.left_digits_num + obj.right_digits_num);
+            
+            couples_selected_lst = obj.new_gen_val(rand_idx, 1);
+            chromosome_bin_selected = obj.init_bin_chromosome(rand_idx, :);
+            %%% Step 2: Crossover couples
+            male = chromosome_bin_selected(1:num_of_chromosome_4_crossover*0.5, :);
+            female = chromosome_bin_selected(1 +num_of_chromosome_4_crossover*0.5 : num_of_chromosome_4_crossover, :);
+            disp('begin:');
+            disp(chromosome_bin_selected);
+            disp('male');
+            disp(male);
+            disp('female');
+            disp(female);
+            
+            [new_male, new_female] = crossover_a_couple(obj, male, female, crossover_points);
+            disp('new male');
+            disp(new_male);
+            disp('new_female');
+            disp(new_female);
+            
+            %%% Step 3: Divide the chromosome into 2 components to recompute the F value
+            
+            %%% Step 4: Compare the new F value with old F value before crossover, if bigger keep new and vice versa. 
+            
             %for iter = 1:obj.max_iters
-               couples_selected_lst = zeros(1, obj_use_to_cross);
-               for id = 1:obj_use_to_cross
-                   couples_selected_lst(1, id) = obj.new_gen_val(rand_idx(1, id),1);
-               end
-               disp(couples_selected_lst)
+
             %end
         end
         
